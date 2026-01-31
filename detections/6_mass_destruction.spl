@@ -1,0 +1,15 @@
+###
+# Rule Name: Mass Deletion/Destruction
+# MITRE ATT&CK: T1485 (Data Destruction), T1490 (Inhibit System Recovery)
+# Severity: Medium to Critical
+# Description: Alerts on bulk deletion of resources (S3, EC2, RDS) or the deletion of critical 
+#              security infrastructure like KMS keys and CloudTrail logs.
+###
+
+index=invictus (eventName="Delete*" OR eventName="Terminate*" OR eventName="Drop*")
+| eval event_time = strptime(eventTime, "%Y-%m-%dT%H:%M:%SZ")
+| bin event_time span=5m
+| stats count as deletion_count, 
+        values(eventName) as actions_taken
+  by userIdentity.arn, sourceIPAddress, event_time
+| where deletion_count > 20 OR (deletion_count > 0 AND (actions_taken="DeleteTrail" OR actions_taken="DeleteKMSKey"))

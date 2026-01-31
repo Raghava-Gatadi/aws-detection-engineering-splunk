@@ -1,0 +1,20 @@
+###
+# Rule Name: Lateral Movement (AssumeRole Chain)
+# MITRE ATT&CK: T1550.001 (Use Alternate Authentication Material)
+# Severity: High
+# Description: Detects rapid or excessive AssumeRole operations (Role Chaining).
+#              Indicates an attacker moving between accounts or roles to escalate permissions or hide their origin.
+###
+
+index=invictus eventName="AssumeRole"
+| eval event_time = strptime(eventTime, "%Y-%m-%dT%H:%M:%SZ")
+| bin event_time span=10m 
+| stats count as total_attempts
+    dc(errorCode) as total_errors
+    values(errorCode) as errors
+    values(errorMessage) as error_message
+    values(eventName) as event_name
+    by userIdentity.arn, event_time, sourceIPAddress
+| where total_attempts >= 3
+| eval event_time = strftime(event_time, "%Y-%m-%d %H:%M:%S") 
+| table event_time, userIdentity.arn, sourceIPAddress, event_name, total_attempts, total_errors, errors, error_message

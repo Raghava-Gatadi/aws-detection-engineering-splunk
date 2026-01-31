@@ -1,0 +1,17 @@
+###
+# Rule Name: API Reconnaissance Spike
+# MITRE ATT&CK: T1595.002 (Active Scanning)
+# Severity: Medium
+# Description: Detects a single identity performing >10 unique API calls (List/Describe/Get) within 10 minutes.
+#              High volumes of discovery calls often precede an attack.
+###
+
+index=invictus (eventName=List* OR eventName=Describe* OR eventName=Get*)
+| eval _time = strptime(eventTime, "%Y-%m-%dT%H:%M:%SZ") 
+| bin _time span=10m
+| stats dc(eventName) as unique_api_calls, 
+        values(eventName) as attempted_calls, 
+        count as total_hits 
+  by _time, sourceIPAddress, userIdentity.arn
+| where unique_api_calls > 10
+| sort - unique_api_calls

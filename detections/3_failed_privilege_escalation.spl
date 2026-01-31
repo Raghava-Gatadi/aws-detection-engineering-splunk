@@ -1,0 +1,24 @@
+###
+# Rule Name: Failed Privilege Escalation
+# MITRE ATT&CK: T1078 (Valid Accounts), T1068 (Exploitation for Privilege Escalation)
+# Severity: Medium to Critical (Dynamic)
+# Description: Monitors for rapid bursts of AccessDenied or UnauthorizedOperation errors.
+#              This logic suggests an attacker brute-forcing permissions to find a path for escalation.
+###
+
+index=invictus (errorCode="AccessDenied" OR errorCode="UnauthorizedOperation")
+| eval event_time=strptime(eventTime, "%Y-%m-%dT%H:%M:%SZ")
+| bin event_time span=5m
+| stats count as failed_attempts,
+        dc(eventName) as unique_events,
+        values(eventName) as attempted_events,
+        values(eventMessage) as error_details
+  by event_time, sourceIPAddress, userIdentity.arn
+| where failed_attempts > 3
+| eval EventTime = strftime(event_time, "%Y-%m-%dT%H:%M:%SZ")
+| eval severity=case(
+    failed_attempts > 10, "CRITICAL",
+    failed_attempts > 5, "HIGH",
+    1=1, "MEDIUM")
+| table EventTime, sourceIPAddress, userIdentity.arn, failed_attempts, unique_events, attempted_events, error_details, severity
+| sort - failed_attempts

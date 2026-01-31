@@ -1,0 +1,11 @@
+###
+# Rule Name: CloudTrail Tampering
+# MITRE ATT&CK: T1562.008 (Impair Defenses: Disable Cloud Logs)
+# Severity: Critical
+# Description: Detects administrative actions aimed at disabling security auditing. 
+#              There are very few legitimate business reasons to stop logging in production.
+###
+
+index=invictus 
+eventName IN ("StopLogging", "DeleteTrail", "UpdateTrail", "PutEventSelectors", "DeleteDetector", "PutInsightSelectors", "CreateTrail", "ArchiveFindings")
+| table eventTime, eventName, awsRegion, userIdentity.type, userIdentity.arn, userIdentity.accountId, sourceIPAddress, userAgent, requestID

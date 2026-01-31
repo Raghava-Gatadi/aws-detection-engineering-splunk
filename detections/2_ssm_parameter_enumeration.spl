@@ -1,0 +1,23 @@
+###
+# Rule Name: SSM Parameter Enumeration
+# MITRE ATT&CK: T1555.006 (Credentials from Password Stores)
+# Severity: High
+# Description: Detects excessive access attempts to AWS Systems Manager (SSM) Parameter Store.
+#              Attackers target SSM to steal API keys, database credentials, and secrets.
+###
+
+index=invictus eventSource="ssm.amazonaws.com" eventName IN ("DescribeParameters", "GetParameters", "GetParameter", "GetParameterHistory")
+| eval event_time = strptime(eventTime, "%Y-%m-%dT%H:%M:%SZ")
+| bin event_time span=10m
+| stats count as api_call_count,
+        dc(eventName) as distinct_api_calls,
+        dc(requestParameters.name) as unique_parameters,
+        count(eval(errorCode="AccessDenied")) AS access_denied_count,
+        values(eventName) AS api_calls,
+        values(errorCode) AS error_codes,
+        values(sourceIPAddress) AS source_ips,
+        values(userAgent) AS user_agents
+  by userIdentity.arn, event_time
+| where api_call_count > 10
+| eval event_time = strftime(event_time, "%Y-%m-%dT%H:%M:%SZ")
+| table event_time, userIdentity.arn, source_ips, user_agents, distinct_api_calls, unique_parameters, access_denied_count, api_calls, error_codes
